@@ -127,8 +127,8 @@ int main()
 
 	if ((int)frameBuffer == -1) 
 	{
-		perror("Error: failed to map framebuffer device to memory\n");
-		exit(4);
+		printf("Error: failed to map framebuffer device to memory\n");
+		return -1;
 	}
 	printf("The framebuffer device was mapped to memory successfully.\n");
 

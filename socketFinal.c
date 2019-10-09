@@ -7,17 +7,19 @@
 #include <math.h>
 #include <stdbool.h>
 
+
 struct pixelData
 {
-	uint8_t x, y, r, g, b;
+	unsigned char x, y, r, g, b;
 };
 struct postData
 {
 	char name;
-	uint8_t value;
+	unsigned char value;
 };
 
-uint8_t * trim (uint8_t * input)
+
+unsigned char * trim (unsigned char * input)
 {
 	//TODO: Fix malloc over top size error!
 	if (*(input) != ' ')
@@ -31,7 +33,7 @@ uint8_t * trim (uint8_t * input)
 			break;
 	}
 	printf("i = %d\n", i);
-	uint8_t *output = malloc(strlen(input) - i);
+	unsigned char *output = malloc(strlen(input) - i);
 	printf("Starting string copy\n");
 	for (int j = 0; j < strlen(input) - i; j++)
 	{
@@ -42,10 +44,10 @@ uint8_t * trim (uint8_t * input)
 	return input;
 }
 
-int8_t processRequest(uint8_t buffer[], struct pixelData * pxl) 
+char processRequest(unsigned char buffer[], struct pixelData * pxl) 
 {
 	printf("Processing Request\n");
-	uint8_t header[4];
+	unsigned char header[4];
 	strncpy(header, buffer, 4);
 	if (strcmp(header, "POST") != 0)
 	{
@@ -53,54 +55,57 @@ int8_t processRequest(uint8_t buffer[], struct pixelData * pxl)
 		return -1;
 	}
 	//TODO: Finish splitting request at new line
-	uint8_t **array = (uint8_t**) malloc(24);
-	uint8_t * token;
+	unsigned char *array[8];
+	unsigned char * token;
 	token = strtok(buffer, "\n");
-	int32_t index = 0;
+	int index = 0;
 	while (token != NULL) 
 	{
-		*(array + index) = token;
+		array[index] = (unsigned char *) malloc (strlen(token) * sizeof(unsigned char *));
+		strncpy(array[index], token, strlen(token));
 		index += 1;
 		token = strtok(NULL, "\n");
 	}
-	uint8_t * request = *(array + index - 1);
+	token = NULL;
+	unsigned char * request = array[index - 1];
 	printf("%s\n", request);
-	free(array);
+	
 	if (strncmp(request, "action=exit", 11) == 0)
 	{
 		return -27;
 	}
-	uint8_t **params = (uint8_t**) malloc(16);
-	uint8_t *paramToken = strtok(request, "&");
+	printf("Starting parse process\n");
+	unsigned char *params[10];
+	unsigned char *paramToken = strtok(request, "&");
 	int paramCount = 0;
 	while (paramToken != NULL)
 	{
-		*(params + paramCount) = paramToken;
+		params[paramCount] = (unsigned char *) malloc(strlen(paramToken) * sizeof(unsigned char *));
+		strcpy(params[paramCount], paramToken);
 		paramCount++;
 		paramToken = strtok(NULL, "&");
 	}
 
-	struct postData parsedParameters[paramCount] /*= malloc(sizeof(*parsedParameters)*(paramCount))*/;
+	struct postData parsedParameters[paramCount];
 	int equalityIndex = 0;
 	int tempValue = 0;
 	for (int i = 0; i < paramCount; i++)
 	{
-		if (*(params + i) == NULL)
+		if (params[i] == NULL)
 			break;
 		//process each value
 		int j = 0;
-		printf("Parsing %s, with length = %d\n", *(params + i), strlen(*(params + i)));
-		for (j = 0; j < strlen(*(params + i)); j++)	
+		printf("Parsing %s, with length = %d\n", params[i], strlen(params[i]));
+		for (j = 0; j < strlen(params[i]); j++)	
 		{
-			if ((u_int8_t)*(*(params + i) + j) == '=')
+			if ((unsigned char)*(params[i] + j) == '=')
 			{
 				equalityIndex = j;
 				break;
 			}
-			//printf("%c\n", *(*(params + i) + j));
 		}
-		tempValue = atoi(&(*(*(params + i) + equalityIndex+1)));
-		(parsedParameters+i)->name = (char) **(params+i);
+		tempValue = atoi(&(*(params[i] + equalityIndex + 1)));
+		(parsedParameters+i)->name = (char) *(params[i]);
 		(parsedParameters+i)->value = tempValue;
 		equalityIndex = 0;
 	}
@@ -149,8 +154,11 @@ int8_t processRequest(uint8_t buffer[], struct pixelData * pxl)
 		}
 	}
 
-	free(params);
-	//free(parsedParameters);
+	for (int i = 0; i < paramCount; i++)
+		free(params[i]);
+
+	for (int i = 0; i < 8; i++)
+		free(array[i]);
 
 	if (x && y && r && g && b) {
 		return 0;
@@ -161,11 +169,11 @@ int8_t processRequest(uint8_t buffer[], struct pixelData * pxl)
 
 int main() 
 {
-	uint32_t requestCount = 0;
-	int32_t listenfd, connfd, n;
+	unsigned int requestCount = 0;
+	int listenfd, connfd, n;
 	struct sockaddr_in serverAdress;
-	uint8_t buff[4096 + 1];
-	uint8_t recvLine[4096 + 1];
+	unsigned char  buff[4096 + 1];
+	unsigned char recvLine[4096 + 1];
 
 	if ((listenfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) 
 	{
@@ -211,17 +219,17 @@ int main()
 			return -1;
 		}
 		struct pixelData query;
-		int8_t result = processRequest(recvLine, &query);
+		char result = processRequest(recvLine, &query);
 		requestCount++;
 		if (result == -27) 
 		{
 			break;
 		} else if (result == 0) 
 		{
-			printf("x:%d;y:%d;r:%d;g:%d;b:%d;",query.x,query.y,query.r,query.g,query.b);
+			printf("x:%d;y:%d;r:%d;g:%d;b:%d;\n",query.x,query.y,query.r,query.g,query.b);
 		}
 		printf("Processed Request: %d\n", requestCount);
-		uint8_t response[] = "HTTP/1.1 200 OK \r\n The server recieved your request!\r\n";
+		unsigned char response[] = "HTTP/1.1 200 OK \r\n The server recieved your request!\r\n";
 		send(connfd, &response, sizeof(response), 0);
 		close(connfd);
 	}
